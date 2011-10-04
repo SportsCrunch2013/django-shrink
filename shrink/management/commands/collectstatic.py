@@ -2,6 +2,7 @@ import os
 from django.conf import settings
 from django.contrib.staticfiles.management.commands.collectstatic import Command as CollectStaticCommand
 from django.template.loader import get_template
+from django.template.base import TemplateSyntaxError, TemplateEncodingError, VariableDoesNotExist, InvalidTemplateLibrary, TemplateDoesNotExist
 from shrink.helpers import import_string, handle_extensions
 from shrink.base import StyleCompressor, ScriptCompiler
 from shrink.templatetags.shrink import ScriptNode, StyleNode
@@ -55,7 +56,14 @@ class Command(CollectStaticCommand):
                         for (dirpath, dirnames, filenames) in os.walk(template_dir):
                             for f in filenames:
                                 if splitext(f)[1] in extensions:
-                                    templates.add(get_template(pjoin(dirpath, f)))
+                                    try:
+                                        templates.add(get_template(pjoin(dirpath, f)))
+                                    except (TemplateSyntaxError,
+                                            TemplateEncodingError,
+                                            TemplateDoesNotExist,
+                                            VariableDoesNotExist,
+                                            InvalidTemplateLibrary):
+                                        pass
         for t in templates:
             rshrink(t, t)
 
