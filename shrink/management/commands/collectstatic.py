@@ -4,7 +4,7 @@ from django.contrib.staticfiles.management.commands.collectstatic import Command
 from django.template.loader import get_template
 from django.template.base import TemplateSyntaxError, TemplateEncodingError, VariableDoesNotExist, InvalidTemplateLibrary, TemplateDoesNotExist
 from shrink.helpers import import_string, handle_extensions
-from shrink.base import StyleCompressor, ScriptCompiler
+from shrink.base import StyleShrink, ScriptShrink
 from shrink.templatetags.shrink import ScriptNode, StyleNode
 from optparse import make_option
 from os.path import isdir, splitext, join as pjoin
@@ -15,10 +15,10 @@ def rshrink(node, t):
     Recursive fun
     """
     if isinstance(node, ScriptNode):
-        shrink = ScriptCompiler(node, t.name)
+        shrink = ScriptShrink(node, t.name)
         shrink.update()
     elif isinstance(node, StyleNode):
-        shrink = StyleCompressor(node, t.name)
+        shrink = StyleShrink(node, t.name)
         shrink.update()
     if hasattr(node, 'nodelist'):
         for n in node.nodelist:
@@ -26,21 +26,30 @@ def rshrink(node, t):
 
 
 class Command(CollectStaticCommand):
-    option_list = CollectStaticCommand.option_list + (
-        make_option('--extension', '-e', dest='extensions', default=['html'],
-            help=(
-                'The file extension(s) to examine for scripts and css '
-                '(default: ".html", separate multiple extensions with commas, '
-                'or use -e multiple times)'
-                ),
-            action='append'),
-        make_option('--noshrink', action='store_false', dest='shrink',
-            default=True, help="Do NOT shrink scripts or css."),
-    )
     help = (
         "Collect static files from apps and other locations in a single"
-        "location.\nShrinks javascripts and css/scss defined in templates."
+        "location.\nShrinks javascripts and css defined in templates."
         )
+
+    @property
+    def option_list(self):
+        opt_list = []
+        for opt in CollectStaticCommand.option_list:
+            if opt.get_opt_string() == '--noinput':
+                opt.default = False
+            opt_list.append(opt)
+        opt_list.extend([
+            make_option('--extension', '-e', dest='extensions', default=['html'],
+                help=(
+                    'The file extension(s) to examine for scripts and css '
+                    '(default: ".html", separate multiple extensions with commas, '
+                    'or use -e multiple times)'
+                    ),
+                action='append'),
+            make_option('--noshrink', action='store_false', dest='shrink',
+                default=True, help="Do NOT shrink scripts or css."),
+        ])
+        return opt_list
 
     def handle_noargs(self,  **options):
         super(Command, self).handle_noargs(**options)
